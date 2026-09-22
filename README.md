@@ -1,0 +1,1 @@
+# Taller-2-Python-Qt-Designer---Raspberry-

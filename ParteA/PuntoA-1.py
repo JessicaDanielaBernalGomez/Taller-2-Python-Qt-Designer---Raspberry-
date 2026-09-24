@@ -212,7 +212,7 @@ class Ui_MainWindow(object):
         _translate = QtCore.QCoreApplication.translate
         self.label_universidad.setText(_translate("MainWindow", "Universidad ECCI"))
         self.label_integrantes.setText(_translate(
-            "MainWindow", "Integrantes: NOMBRE_INTEGRANTE_1, NOMBRE_INTEGRANTE_2, NOMBRE_INTEGRANTE_3"))
+            "MainWindow", "Integrantes: Jessica Daniela Bernal Gomez, Jorman Santiago Preciado Duque, Danilo Rodriguez Malago, Brayan Rincon Daza"))
         MainWindow.setWindowTitle(_translate("MainWindow", "Punto 1 - Calculadora Aritmética y Trigonométrica"))
         self.label_titulo.setText(_translate("MainWindow", "CALCULADORA ARITMÉTICA Y TRIGONOMÉTRICA"))
         self.label_a.setText(_translate("MainWindow", "Valor A"))

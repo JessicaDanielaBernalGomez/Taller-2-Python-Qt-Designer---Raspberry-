@@ -117,7 +117,7 @@ class Ui_MainWindow(object):
         self.label_estado_rc.setFont(font_estado_rc)
         self.label_estado_rc.setObjectName("label_estado_rc")
 
-        # --- Objeto tipo axes: gráfica dinámica de Vc(t) ---
+        # --- Objeto tipo axes: gráfica estática de Vc(t) ---
         self.figure_rc = Figure(figsize=(5, 4))
         self.canvas_rc = FigureCanvas(self.figure_rc)
         self.canvas_rc.setParent(self.centralwidget)
@@ -143,28 +143,22 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
         # ---------- Conexiones ----------
-        self.slider_r.valueChanged.connect(self._actualizar_etiquetas_rc)
-        self.slider_c.valueChanged.connect(self._actualizar_etiquetas_rc)
-        self.slider_v.valueChanged.connect(self._actualizar_etiquetas_rc)
+        self.slider_r.valueChanged.connect(self._actualizar_grafica_rc)
+        self.slider_c.valueChanged.connect(self._actualizar_grafica_rc)
+        self.slider_v.valueChanged.connect(self._actualizar_grafica_rc)
         self.pushButton_reiniciar_rc.clicked.connect(self.reiniciar_rc)
 
         self._inicializar_estado_rc()
-        self._actualizar_etiquetas_rc()
-
-        # Temporizador que actualiza la gráfica en tiempo real
-        self.timer_rc = QtCore.QTimer()
-        self.timer_rc.setInterval(50)  # 50 ms -> 20 cuadros por segundo
-        self.timer_rc.timeout.connect(self._simular_paso_rc)
-        self.timer_rc.start()
+        self._actualizar_grafica_rc()
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         self.label_universidad.setText(_translate("MainWindow", "Universidad ECCI"))
         self.label_integrantes.setText(_translate(
             "MainWindow", "Integrantes: Jessica Daniela Bernal Gomez, Jorman Santiago Preciado Duque, Danilo Rodriguez Malago, Brayan Rincon Daza"))
-        MainWindow.setWindowTitle(_translate("MainWindow", "Punto 4 - Circuito RC en tiempo real"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "Punto 4 - Circuito RC"))
         self.label_rc_titulo.setText(_translate(
-            "MainWindow", "Carga y descarga de un condensador (circuito RC) en tiempo real"))
+            "MainWindow", "Carga y descarga de un condensador (circuito RC)"))
         self.pushButton_reiniciar_rc.setText(_translate("MainWindow", "Reiniciar"))
 
     # ---------------------------------------------------------------
@@ -176,19 +170,13 @@ class Ui_MainWindow(object):
     _RC_VENTANA = 20.0
 
     def _inicializar_estado_rc(self):
-        self._rc_t_total = 0.0        # tiempo total transcurrido de la simulación
-        self._rc_t_fase = 0.0         # tiempo transcurrido en la fase actual
-        self._rc_fase = "carga"       # "carga" o "descarga"
-        self._rc_v_inicio_fase = 0.0  # voltaje del condensador al iniciar la fase
-        self._rc_v_actual = 0.0       # voltaje actual del condensador
-        self._rc_historial_t = [0.0]
-        self._rc_historial_v = [0.0]
+        # La simulación se calcula completa y se muestra de forma estática.
+        self._rc_historial_t = []
+        self._rc_historial_v = []
 
     def reiniciar_rc(self):
-        self._inicializar_estado_rc()
-        self.linea_rc.set_data(self._rc_historial_t, self._rc_historial_v)
-        self.axes_rc.set_xlim(0, self._RC_VENTANA)
-        self.canvas_rc.draw_idle()
+        # Reinicia y vuelve a calcular la gráfica completa.
+        self._actualizar_grafica_rc()
 
     def _leer_parametros_rc(self):
         r = self.slider_r.value()          # ohmios
@@ -196,49 +184,60 @@ class Ui_MainWindow(object):
         v = self.slider_v.value()          # voltios
         return r, c, v
 
-    def _actualizar_etiquetas_rc(self):
+    def _actualizar_grafica_rc(self):
         r, c, v = self._leer_parametros_rc()
+
+        # Actualizar los valores mostrados
         self.label_valor_r.setText(f"Resistencia R = {r} Ω")
         self.label_valor_c.setText(f"Capacitancia C = {self.slider_c.value()} µF")
         self.label_valor_v.setText(f"Voltaje V = {v} V")
         self.linea_v_fuente.set_ydata([v, v])
 
-    def _simular_paso_rc(self):
-        dt = self.timer_rc.interval() / 1000.0  # segundos por paso
-        r, c, v = self._leer_parametros_rc()
-        tau = max(r * c, 1e-6)  # evitar división por cero
+        # Constante de tiempo del circuito
+        tau = max(r * c, 1e-6)
 
-        self._rc_t_fase += dt
-        self._rc_t_total += dt
+        # Tiempo total de la gráfica: 20 s
+        dt = 0.01
+        tiempo_total = self._RC_VENTANA
 
-        objetivo = v if self._rc_fase == "carga" else 0.0
-        self._rc_v_actual = objetivo + (self._rc_v_inicio_fase - objetivo) * math.exp(
-            -self._rc_t_fase / tau)
+        tiempos = []
+        voltajes = []
 
-        # Conmutar entre carga y descarga cada _RC_DURACION_FASE segundos
-        if self._rc_t_fase >= self._RC_DURACION_FASE:
-            self._rc_fase = "descarga" if self._rc_fase == "carga" else "carga"
-            self._rc_v_inicio_fase = self._rc_v_actual
-            self._rc_t_fase = 0.0
+        # Simulación estática de carga y descarga.
+        # Cada fase dura 4 segundos.
+        for i in range(int(tiempo_total / dt) + 1):
+            t = i * dt
+            t_fase = t % (2 * self._RC_DURACION_FASE)
 
-        # Guardar el punto en el historial (ventana deslizante tipo osciloscopio)
-        self._rc_historial_t.append(self._rc_t_total)
-        self._rc_historial_v.append(self._rc_v_actual)
-        t_min = self._rc_t_total - self._RC_VENTANA
-        while self._rc_historial_t and self._rc_historial_t[0] < t_min:
-            self._rc_historial_t.pop(0)
-            self._rc_historial_v.pop(0)
+            if t_fase < self._RC_DURACION_FASE:
+                # Carga: inicia en 0 V y se aproxima a V
+                tiempo_carga = t_fase
+                vc = v * (1 - math.exp(-tiempo_carga / tau))
+                estado = "Estado: CARGANDO"
+            else:
+                # Descarga: parte del valor alcanzado al final de la carga
+                tiempo_descarga = t_fase - self._RC_DURACION_FASE
+                vc_carga = v * (1 - math.exp(-self._RC_DURACION_FASE / tau))
+                vc = vc_carga * math.exp(-tiempo_descarga / tau)
+                estado = "Estado: DESCARGANDO"
 
-        self.label_estado_rc.setText(
-            "Estado: CARGANDO" if self._rc_fase == "carga" else "Estado: DESCARGANDO")
+            tiempos.append(t)
+            voltajes.append(vc)
 
-        # Actualizar la gráfica sin recrearla (más eficiente para tiempo real)
-        self.linea_rc.set_data(self._rc_historial_t, self._rc_historial_v)
-        if self._rc_t_total <= self._RC_VENTANA:
-            self.axes_rc.set_xlim(0, self._RC_VENTANA)
-        else:
-            self.axes_rc.set_xlim(t_min, self._rc_t_total)
-        self.axes_rc.set_ylim(-1, 25)
+        self._rc_historial_t = tiempos
+        self._rc_historial_v = voltajes
+
+        # Dibujar la curva completa de una sola vez
+        self.linea_rc.set_data(tiempos, voltajes)
+        self.axes_rc.set_xlim(0, self._RC_VENTANA)
+
+        # Ajustar el eje Y al voltaje seleccionado
+        margen = max(v * 0.10, 0.5)
+        self.axes_rc.set_ylim(-margen, v + margen)
+
+        # Mostrar el estado inicial
+        self.label_estado_rc.setText("Estado: CARGANDO")
+
         self.canvas_rc.draw_idle()
 
 

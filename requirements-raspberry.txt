@@ -1,0 +1,5 @@
+# Crear un entorno separado en Raspberry Pi OS; no reutilizar .venv de Windows.
+gpiozero>=2,<3
+lgpio>=0.2,<1
+adafruit-blinka>=8,<9
+adafruit-circuitpython-bmp280>=3,<4

@@ -1,0 +1,26 @@
+{
+  "servos": [
+    12,
+    13
+  ],
+  "servo_pulso_min_ms": 1,
+  "servo_pulso_max_ms": 2,
+  "leds": [
+    17,
+    27
+  ],
+  "leds_pwm": [
+    22,
+    23
+  ],
+  "i2c_direccion": "0x76",
+  "entrada": 24,
+  "motor": [
+    5,
+    6,
+    16,
+    26
+  ],
+  "motor_pasos_vuelta": 4096,
+  "motor_intervalo_ms": 3
+}

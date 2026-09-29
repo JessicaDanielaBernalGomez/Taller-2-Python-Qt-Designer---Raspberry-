@@ -111,7 +111,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        self.label_universidad.setText(_translate("MainWindow", "Universidad: NOMBRE_DE_LA_UNIVERSIDAD"))
+        self.label_universidad.setText(_translate("MainWindow", "Universidad ECCI"))
         self.label_integrantes.setText(_translate(
             "MainWindow", "Integrantes: Jessica Daniela Bernal Gomez, Jorman Santiago Preciado Duque, Danilo Rodriguez Malago, Brayan Rincon Daza"))
         MainWindow.setWindowTitle(_translate("MainWindow", "Punto 5 - Imagen y contornos"))

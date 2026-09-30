@@ -13,7 +13,7 @@
     22,
     23
   ],
-  "i2c_direccion": "0x76",
+  "i2c_direccion": "auto",
   "entrada": 24,
   "motor": [
     5,
@@ -22,5 +22,12 @@
     26
   ],
   "motor_pasos_vuelta": 4096,
-  "motor_intervalo_ms": 3
+  "motor_intervalo_ms": 3,
+  "ventilador_pines_fisicos_reservados": [
+    4,
+    6,
+    8
+  ],
+  "gnd_componentes_pin_fisico": 9,
+  "nota_pines": "GPIO en BCM: ventilador físico 4=5V, 6=GND, 8=GPIO14. No usar esos conectores. GPIO6 del motor es físico31 y NO está ocupado."
 }

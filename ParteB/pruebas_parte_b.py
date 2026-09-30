@@ -4,6 +4,7 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 import sys
 from PyQt5 import QtCore, QtWidgets
 from interfaz import Ventana
+from hardware import CONFIG, validar_pines, detectar_mpu
 
 app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
@@ -13,6 +14,35 @@ def esperar(ms):
     bucle.exec_()
 
 def probar():
+    validar_pines(CONFIG)
+    conflicto = dict(CONFIG, servos=[14, 13])
+    try:
+        validar_pines(conflicto)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Se permitió el pin físico8 del ventilador.")
+    class Bus:
+        def __init__(self, direcciones):
+            self.direcciones = direcciones
+            self.liberado = False
+        def try_lock(self):
+            return True
+        def scan(self):
+            return self.direcciones
+        def unlock(self):
+            self.liberado = True
+    for direccion in (0x68, 0x69):
+        bus = Bus([direccion])
+        assert detectar_mpu(bus, "auto") == direccion and bus.liberado
+    for direcciones in ([], [0x76], [0x68, 0x69]):
+        try:
+            detectar_mpu(Bus(direcciones), "auto")
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError("Detección ausente o ambigua aceptada.")
+    assert detectar_mpu(Bus([0x68, 0x69]), "0x69") == 0x69
     ventanas = []
     try:
         for punto in range(1, 6):
@@ -52,6 +82,8 @@ def probar():
         esperar(500)
         assert b3.trabajador is None
         assert "Temperatura:" in b3.lectura.text()
+        assert "Aceleración (m/s²)" in b3.lectura.text()
+        assert "Giroscopio (rad/s)" in b3.lectura.text()
         assert "Tiempo finalizado" in b3.estado.text()
         ultima = b3.lectura.text()
         esperar(100)

@@ -19,7 +19,7 @@ def numero(texto, nombre, minimo, maximo):
     return valor
 
 class LecturaI2C(QtCore.QThread):
-    lectura = QtCore.pyqtSignal(float, float)
+    lectura = QtCore.pyqtSignal(object, float)
     fallo = QtCore.pyqtSignal(str)
 
     def __init__(self, hardware, duracion, parent):
@@ -102,6 +102,8 @@ class Ventana(QtWidgets.QWidget):
                                     else "SIMULACIÓN: sin conexión a GPIO")
             self.controles.setEnabled(True)
             self.estado.setText("Listo.")
+            if self.punto == 3 and real:
+                self.modo_activo.setText(f"RASPBERRY PI: MPU6050 conectado en {self.hw.direccion:#04x}")
             if self.punto == 1:
                 self.angulos = [90, 90]
                 self.seleccionar_servo()
@@ -197,7 +199,12 @@ class Ventana(QtWidgets.QWidget):
         self.trabajador.start()
 
     def mostrar_lectura(self, valor, transcurrido):
-        self.lectura.setText(f"Temperatura: {valor:.2f} °C")
+        ax, ay, az = valor["aceleracion"]
+        gx, gy, gz = valor["giro"]
+        self.lectura.setText(
+            f"Aceleración (m/s²): X={ax:.2f}  Y={ay:.2f}  Z={az:.2f}\n"
+            f"Giroscopio (rad/s): X={gx:.3f}  Y={gy:.3f}  Z={gz:.3f}\n"
+            f"Temperatura: {valor['temperatura']:.2f} °C")
         self.estado.setText(f"Lectura activa: {transcurrido:.1f} s")
 
     def fallo_lectura(self, mensaje):

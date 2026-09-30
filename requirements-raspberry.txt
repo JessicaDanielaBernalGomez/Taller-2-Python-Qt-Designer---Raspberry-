@@ -2,4 +2,4 @@
 gpiozero>=2,<3
 lgpio>=0.2,<1
 adafruit-blinka>=8,<9
-adafruit-circuitpython-bmp280>=3,<4
+adafruit-circuitpython-mpu6050>=1,<2

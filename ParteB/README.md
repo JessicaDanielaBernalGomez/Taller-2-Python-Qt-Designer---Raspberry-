@@ -36,8 +36,11 @@ python3 -m venv --system-site-packages .venv
 ```
 
 Habilita I2C en `sudo raspi-config` y verifica con `i2cdetect -y 1`.
-El sensor BMP280 se configura en `0x76`; cambia a `0x77` en
-`configuracion.json` si esa es su dirección. No es un BME280.
+El MPU6050 se detecta automáticamente en `0x68` o `0x69`.
+AD0 a GND selecciona 0x68; AD0 a 3,3 V selecciona 0x69.
+Si aparecen ambas direcciones, selecciona explícitamente una en
+`i2c_direccion` de `configuracion.json`. Detectar una dirección no basta:
+el controlador verifica también la identidad del sensor.
 Ejecuta en la sesión gráfica de Raspberry Pi OS. El usuario necesita acceso
 a GPIO e I2C. GPIO Zero selecciona su controlador disponible; consulta
 [su documentación de pines](https://gpiozero.readthedocs.io/en/stable/api_pins.html)
@@ -52,7 +55,7 @@ Se editan en `configuracion.json`.
 |---|---|
 | B1 | Señales de servo 1 y 2: GPIO12 y GPIO13 |
 | B2 | LED rojo GPIO17, verde GPIO27; LEDs de brillo GPIO22 y GPIO23 |
-| B3 | BMP280: SDA GPIO2, SCL GPIO3, alimentación compatible a 3,3 V y GND |
+| B3 | MPU6050: SDA GPIO2, SCL GPIO3, VCC compatible a 3,3 V físico1 y GND físico9 |
 | B4 | Entrada GPIO24; resistencia pull-down interna; pulsador entre 3,3 V y GPIO24 |
 | B5 | ULN2003 IN1, IN2, IN3, IN4: GPIO5, GPIO6, GPIO16, GPIO26 |
 
@@ -70,7 +73,7 @@ El motor se conecta al ULN2003, no directamente a los pines.
   un recorrido físico exacto de 180° en todos los modelos.
 - **B2:** un botón alterna cada LED rojo/verde y adopta su color encendido.
   Los sliders controlan otros dos LEDs mediante PWM.
-- **B3:** temperatura BMP280 cada 0,2 s durante el tiempo indicado.
+- **B3:** aceleración (m/s²), giro (rad/s) y temperatura (°C) MPU6050 cada 0,2 s durante el tiempo indicado.
   La lectura corre en un hilo para mantener operativa la ventana. Al
   terminar conserva el último valor. Detener cancela las siguientes lecturas;
   una lectura I2C que ya esté en curso debe retornar antes de cerrar.
@@ -97,4 +100,37 @@ validarse en la Raspberry con los componentes reales.
 Referencias:
 - [GPIO Zero: salidas y servos](https://gpiozero.readthedocs.io/en/stable/api_output.html)
 - [GPIO Zero: entradas digitales](https://gpiozero.readthedocs.io/en/stable/api_input.html)
-- [BMP280: Python y CircuitPython](https://learn.adafruit.com/adafruit-bmp280-barometric-pressure-plus-temperature-sensor-breakout/circuitpython-test)
+- [MPU6050: Python y CircuitPython](https://docs.circuitpython.org/projects/mpu6050/en/latest/api.html)
+
+## Pines físicos reservados al ventilador
+
+**No conectar componentes del taller a los pines físicos 4, 6 u 8.**
+Son 5 V, GND y GPIO14, respectivamente. Usar **GND físico9** para sensores,
+LEDs, servos y tierra común de la fuente externa. Ninguna señal actual
+usa GPIO14. GPIO6 del motor corresponde al físico31: no es un conflicto.
+
+El mapa BCM/físico y las reservas están al principio de `hardware.py`.
+`validar_pines` rechaza GPIO14, duplicados y una tierra reservada antes
+de abrir dispositivos. `configuracion.json` contiene los pines ajustables.
+
+| Función | BCM | Pin físico |
+|---|---|---|
+| Servos 1 / 2 | 12 / 13 | 32 / 33 |
+| LED rojo / verde | 17 / 27 | 11 / 13 |
+| LEDs de brillo | 22 / 23 | 15 / 16 |
+| MPU6050 SDA / SCL | 2 / 3 | 3 / 5 |
+| Entrada digital | 24 | 18 |
+| ULN2003 IN1 / IN2 / IN3 / IN4 | 5 / 6 / 16 / 26 | 29 / 31 / 36 / 37 |
+| Tierra común | GND | 9 |
+
+MPU6050: para un módulo compatible, VCC a 3,3 V físico1 y GND físico9.
+INT, XDA y XCL no se utilizan. No llevar señales I2C a 5 V.
+Tras actualizar los archivos en Raspberry, ejecutar:
+```bash
+.venv/bin/python -m pip install -r requirements-raspberry.txt
+i2cdetect -y 1
+.venv/bin/python ejecutar.py ParteB/PuntoB-3.py
+```
+Seleccionar hardware real y conectar. Si el escaneo no muestra 68 o 69,
+revisar alimentación, SDA/SCL, AD0 e I2C habilitado. Si aparece una dirección
+pero falla la identificación, revisar que el componente sea MPU6050.

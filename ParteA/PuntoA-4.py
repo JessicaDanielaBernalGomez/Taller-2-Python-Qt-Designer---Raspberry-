@@ -1,5 +1,4 @@
 import math
-from collections import deque
 from PyQt5 import QtCore, QtGui, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -118,7 +117,7 @@ class Ui_MainWindow(object):
         self.label_estado_rc.setFont(font_estado_rc)
         self.label_estado_rc.setObjectName("label_estado_rc")
 
-        # --- Objeto tipo axes: gráfica en tiempo real de Vc(t) ---
+        # --- Objeto tipo axes: gráfica estática de carga y descarga ---
         self.figure_rc = Figure(figsize=(5, 4))
         self.canvas_rc = FigureCanvas(self.figure_rc)
         self.canvas_rc.setParent(self.centralwidget)
@@ -144,18 +143,12 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
         # ---------- Conexiones ----------
-        self.slider_r.valueChanged.connect(self._cambiar_parametros_rc)
-        self.slider_c.valueChanged.connect(self._cambiar_parametros_rc)
-        self.slider_v.valueChanged.connect(self._cambiar_parametros_rc)
+        self.slider_r.valueChanged.connect(self._actualizar_grafica_rc)
+        self.slider_c.valueChanged.connect(self._actualizar_grafica_rc)
+        self.slider_v.valueChanged.connect(self._actualizar_grafica_rc)
         self.pushButton_reiniciar_rc.clicked.connect(self.reiniciar_rc)
 
-        self._rc_reloj = QtCore.QElapsedTimer()
-        self._rc_timer = QtCore.QTimer(MainWindow)
-        self._rc_timer.setInterval(40)
-        self._rc_timer.timeout.connect(self._avanzar_rc)
-        MainWindow.destroyed.connect(self._rc_timer.stop)
-        self.reiniciar_rc()
-        self._rc_timer.start()
+        self._actualizar_grafica_rc()
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -165,86 +158,57 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "Punto 4 - Circuito RC"))
         self.label_rc_titulo.setText(_translate(
             "MainWindow", "Carga y descarga de un condensador (circuito RC)"))
-        self.pushButton_reiniciar_rc.setText(_translate("MainWindow", "Reiniciar"))
+        self.pushButton_reiniciar_rc.setText(_translate("MainWindow", "Restablecer valores"))
 
-    # ---------------------------------------------------------------
-    # Circuito RC: carga y descarga del condensador en tiempo real
-    # ---------------------------------------------------------------
-    # Duración de cada fase (carga / descarga) antes de conmutar, en segundos.
-    _RC_DURACION_FASE = 4.0
-    # Ventana de tiempo (segundos) que se muestra en la gráfica tipo osciloscopio.
-    _RC_VENTANA = 20.0
-
-    def _inicializar_estado_rc(self):
-        self._rc_t = 0.0
-        self._rc_vc = 0.0
-        self._rc_fase = 0
-        self._rc_historial_t = deque([0.0])
-        self._rc_historial_v = deque([0.0])
-        self._rc_parametros = self._leer_parametros_rc()
-        self._rc_reloj.start()
-
+    # Curvas independientes: t=0 al iniciar cada fase.
+    # Carga desde 0 V; descarga desde V de la fuente. No hay temporizador.
     def reiniciar_rc(self):
-        self._inicializar_estado_rc()
+        for slider, valor in ((self.slider_r, 1000), (self.slider_c, 100),
+                              (self.slider_v, 12)):
+            slider.blockSignals(True)
+            slider.setValue(valor)
+            slider.blockSignals(False)
         self._actualizar_grafica_rc()
 
     def _leer_parametros_rc(self):
-        r = self.slider_r.value()          # ohmios
-        c = self.slider_c.value() * 1e-6   # microfaradios -> faradios
-        v = self.slider_v.value()          # voltios
-        return r, c, v
-
-    def _cambiar_parametros_rc(self):
-        # Completar el intervalo anterior con sus parámetros originales.
-        self._integrar_rc(self._rc_reloj.nsecsElapsed() / 1e9)
-        self._rc_parametros = self._leer_parametros_rc()
-        # El ajuste interactivo conserva Vc y el historial; no reinicia el ciclo.
-        self._actualizar_grafica_rc()
-
-    def _integrar_rc(self, tiempo):
-        r, c, v = self._rc_parametros
-        tau = r * c
-        while self._rc_t < tiempo:
-            fin_fase = (self._rc_fase + 1) * self._RC_DURACION_FASE
-            # Dividir en la conmutación para no integrar dos fases juntas.
-            siguiente = min(tiempo, fin_fase, self._rc_t + 0.04)
-            objetivo = v if self._rc_fase % 2 == 0 else 0.0
-            dt = siguiente - self._rc_t
-            # Solución exacta del RC desde el voltaje actual.
-            self._rc_vc += (objetivo - self._rc_vc) * (-math.expm1(-dt / tau))
-            self._rc_t = siguiente
-            self._rc_historial_t.append(self._rc_t)
-            self._rc_historial_v.append(self._rc_vc)
-            if siguiente >= fin_fase:
-                self._rc_fase += 1
-
-        # Conservar solo la ventana visible y un punto previo para unir la curva.
-        limite = self._rc_t - self._RC_VENTANA
-        while len(self._rc_historial_t) > 2 and self._rc_historial_t[1] < limite:
-            self._rc_historial_t.popleft()
-            self._rc_historial_v.popleft()
-
-    def _avanzar_rc(self):
-        # Reloj monotónico: los retrasos de dibujo no ralentizan la simulación.
-        self._integrar_rc(self._rc_reloj.nsecsElapsed() / 1e9)
-        self._actualizar_grafica_rc()
+        return self.slider_r.value(), self.slider_c.value() * 1e-6, self.slider_v.value()
 
     def _actualizar_grafica_rc(self):
-        r, c, v = self._rc_parametros
+        r, c, v = self._leer_parametros_rc()
+        tau = r * c
+        cinco_tau = 5 * tau
+        tiempos = [i * tau / 100 for i in range(601)]
+        carga = [v * (-math.expm1(-t / tau)) for t in tiempos]
+        descarga = [v * math.exp(-t / tau) for t in tiempos]
         self.label_valor_r.setText(f"Resistencia R = {r} Ω")
         self.label_valor_c.setText(f"Capacitancia C = {c * 1e6:g} µF")
         self.label_valor_v.setText(f"Voltaje V = {v} V")
-        self.linea_v_fuente.set_ydata([v, v])
-        self.linea_rc.set_data(list(self._rc_historial_t), list(self._rc_historial_v))
-        derecha = max(self._RC_VENTANA, self._rc_t)
-        self.axes_rc.set_xlim(derecha - self._RC_VENTANA, derecha)
-        # Mantener visible el voltaje residual incluso si baja la fuente.
-        maximo = max(v, max(self._rc_historial_v))
-        margen = max(maximo * 0.10, 0.5)
-        self.axes_rc.set_ylim(-margen, maximo + margen)
-        fase = "CARGA" if self._rc_fase % 2 == 0 else "DESCARGA"
-        self.label_estado_rc.setText(
-            f"Fase: {fase} | Vc = {self._rc_vc:.2f} V | τ = {r * c:.3g} s")
+        self.label_estado_rc.setText(f"τ = RC = {tau:.6g} s     |     5τ = {cinco_tau:.6g} s")
+        ax = self.axes_rc
+        ax.clear()
+        self.linea_carga, = ax.plot(tiempos, carga, color="tab:blue", label="Carga desde 0 V")
+        self.linea_descarga, = ax.plot(tiempos, descarga, color="tab:orange", label="Descarga desde V")
+        ax.axhline(v, color="gray", linestyle=":", linewidth=1)
+        self.marca_cinco_tau = ax.axvline(cinco_tau, color="crimson", linestyle="--", linewidth=2)
+        ax.text(cinco_tau, v * 1.10, f"5τ = {cinco_tau:.6g} s",
+                ha="center", color="crimson", fontweight="bold",
+                bbox={"facecolor": "white", "edgecolor": "none", "pad": 2})
+        vc5, vd5 = v * (1 - math.exp(-5)), v * math.exp(-5)
+        ax.scatter([cinco_tau, cinco_tau], [vc5, vd5], color=["tab:blue", "tab:orange"], zorder=5)
+        ax.annotate(f"Carga: 99,33 % = {vc5:.4g} V", (cinco_tau, vc5),
+                    xytext=(2.4 * tau, 0.83 * v), arrowprops={"arrowstyle": "->"},
+                    color="tab:blue")
+        ax.annotate(f"Descarga: 0,67 % = {vd5:.4g} V", (cinco_tau, vd5),
+                    xytext=(2.4 * tau, 0.20 * v), arrowprops={"arrowstyle": "->"},
+                    color="tab:orange")
+        ax.set_xlim(0, 6 * tau)
+        ax.set_ylim(-0.06 * v, 1.2 * v)
+        ax.set_xlabel("Tiempo desde el inicio de cada fase (s)")
+        ax.set_ylabel("Voltaje del condensador (V)")
+        ax.set_title("Carga y descarga RC · referencia de establecimiento: 5τ")
+        ax.grid(True, alpha=0.3)
+        ax.legend(loc="center right")
+        self.figure_rc.tight_layout()
         self.canvas_rc.draw_idle()
 
 

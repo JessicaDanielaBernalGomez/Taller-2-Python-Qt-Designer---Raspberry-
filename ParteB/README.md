@@ -134,3 +134,23 @@ i2cdetect -y 1
 Seleccionar hardware real y conectar. Si el escaneo no muestra 68 o 69,
 revisar alimentación, SDA/SCL, AD0 e I2C habilitado. Si aparece una dirección
 pero falla la identificación, revisar que el componente sea MPU6050.
+
+## Sensor con WHO_AM_I = 0x70
+
+0x70 identifica un MPU6500. La dirección I2C sigue siendo 0x68 o 0x69;
+no poner 0x70 como dirección en configuracion.json.
+El programa selecciona el controlador según el registro 0x75:
+0x68 -> MPU6050 (Adafruit), 0x70 -> MPU6500 (sensores_mpu.py).
+Otros identificadores se rechazan. La interfaz muestra el modelo detectado.
+
+El MPU6500 usa ±2 g, ±250 grados/s y temperatura raw/333.87 + 21 °C.
+La salida se expresa en m/s², rad/s y °C. No se elimina gravedad ni se
+calibran offsets. En reposo, la magnitud de la aceleración ronda 9,81 m/s²
+y el giro debe estar cerca de cero (con sesgo y ruido propios del sensor).
+Se comprueba la configuración escrita y se limita la espera de reinicio.
+
+Copiar también sensores_mpu.py al actualizar hardware.py, interfaz.py
+y PuntoB-3.ui en la Raspberry. Se utiliza Blinka ya incluido en los requisitos;
+no es necesario modificar la librería instalada del MPU6050.
+
+Referencia: https://product.tdk.com/system/files/dam/doc/product/sensor/mortion-inertial/imu/data_sheet/mpu-6500-datasheet2.pdf

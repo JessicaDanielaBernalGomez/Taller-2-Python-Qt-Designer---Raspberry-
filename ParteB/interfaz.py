@@ -103,7 +103,7 @@ class Ventana(QtWidgets.QWidget):
             self.controles.setEnabled(True)
             self.estado.setText("Listo.")
             if self.punto == 3 and real:
-                self.modo_activo.setText(f"RASPBERRY PI: MPU6050 conectado en {self.hw.direccion:#04x}")
+                self.modo_activo.setText(f"RASPBERRY PI: {self.hw.modelo} conectado en {self.hw.direccion:#04x}")
             if self.punto == 1:
                 self.angulos = [90, 90]
                 self.seleccionar_servo()

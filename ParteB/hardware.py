@@ -10,7 +10,7 @@ CONFIG = json.loads(Path(__file__).with_name("configuracion.json").read_text(enc
 # GND de TODOS los componentes del taller: físico 9.
 # BCM12/13 -> físicos32/33: servos.
 # BCM17/27 -> físicos11/13: LEDs; BCM22/23 -> físicos15/16: PWM.
-# MPU6050: SDA BCM2 físico3; SCL BCM3 físico5; VCC 3,3V físico1; GND físico9.
+# MPU6050/MPU6500: SDA BCM2 físico3; SCL BCM3 físico5; VCC 3,3V físico1; GND físico9.
 # Entrada BCM24 -> físico18.
 # ULN2003 IN1..IN4: BCM5/6/16/26 -> físicos29/31/36/37.
 # IMPORTANTE: BCM6 NO es el pin físico6 del ventilador.
@@ -46,7 +46,7 @@ def detectar_mpu(bus, direccion):
     if direccion != "auto":
         elegido = int(direccion, 0)
         if elegido not in (0x68, 0x69):
-            raise ValueError("MPU6050 usa 0x68 o 0x69; configura i2c_direccion como auto.")
+            raise ValueError("MPU6050/MPU6500 usa 0x68 o 0x69; configura i2c_direccion como auto.")
         candidatos = [elegido] if elegido in disponibles else []
     else:
         candidatos = [d for d in (0x68, 0x69) if d in disponibles]
@@ -54,7 +54,7 @@ def detectar_mpu(bus, direccion):
         raise RuntimeError("Hay dispositivos en 0x68 y 0x69; elige uno en configuracion.json.")
     if not candidatos:
         encontrados = ", ".join(hex(d) for d in disponibles) or "ninguno"
-        raise RuntimeError("MPU6050 no detectado en la dirección esperada. "
+        raise RuntimeError("MPU6050/MPU6500 no detectado en la dirección esperada. "
                            f"I2C detectados: {encontrados}. Revisa I2C habilitado, SDA físico3, "
                            "SCL físico5, GND físico9 y AD0. Ejecuta i2cdetect -y 1.")
     return candidatos[0]
@@ -113,18 +113,19 @@ class Raspberry:
             if punto == 3:
                 try:
                     import board
-                    import adafruit_mpu6050
+                    from sensores_mpu import abrir_mpu
                 except ImportError as exc:
-                    raise RuntimeError("Falta el controlador MPU6050. Ejecuta: "
+                    raise RuntimeError("Falta el controlador MPU6050/MPU6500. Ejecuta: "
                                        ".venv/bin/python -m pip install -r requirements-raspberry.txt") from exc
                 self.bus = board.I2C()
                 self.direccion = detectar_mpu(self.bus, CONFIG["i2c_direccion"])
                 try:
-                    self.mpu = adafruit_mpu6050.MPU6050(self.bus, address=self.direccion)
+                    self.mpu = abrir_mpu(self.bus, self.direccion)
+                    self.modelo = self.mpu.modelo
                     self.sensor()
                 except Exception as exc:
                     raise RuntimeError(f"Dispositivo en {self.direccion:#04x}, pero falla "
-                                       f"la identificación/lectura MPU6050: {exc}") from exc
+                                       f"la identificación/lectura MPU6050/MPU6500: {exc}") from exc
                 return
             from gpiozero import AngularServo, LED, PWMLED, DigitalInputDevice, DigitalOutputDevice
             if punto == 1:
@@ -169,8 +170,7 @@ class Raspberry:
         self.pwm[indice].value = valor
 
     def sensor(self):
-        return {"aceleracion": self.mpu.acceleration,
-                "giro": self.mpu.gyro, "temperatura": self.mpu.temperature}
+        return self.mpu.leer()
 
     def digital(self):
         return bool(self.entrada.value)

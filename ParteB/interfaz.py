@@ -5,7 +5,7 @@ import threading
 import time
 from pathlib import Path
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
-from hardware import CONFIG, Raspberry, Simulador
+from hardware import CONFIG, Raspberry
 
 CARPETA = Path(__file__).resolve().parent
 
@@ -74,7 +74,6 @@ class Ventana(QtWidgets.QWidget):
             self.detener.clicked.connect(self.detener_lectura)
             self.detener.setEnabled(False)
         elif punto == 4:
-            self.simulado.toggled.connect(self.cambiar_entrada)
             self.timer.setInterval(100)
             self.timer.timeout.connect(self.leer_digital)
             self.timer.start()
@@ -96,14 +95,12 @@ class Ventana(QtWidgets.QWidget):
         self.hw = None
         self.controles.setEnabled(False)
         try:
-            real = self.modo.currentIndex() == 1
-            self.hw = Raspberry(self.punto) if real else Simulador(self.punto)
-            self.modo_activo.setText("RASPBERRY PI: hardware conectado" if real
-                                    else "SIMULACIÓN: sin conexión a GPIO")
+            self.hw = Raspberry(self.punto)
+            self.estado_conexion.setText("RASPBERRY PI: hardware conectado")
             self.controles.setEnabled(True)
             self.estado.setText("Listo.")
-            if self.punto == 3 and real:
-                self.modo_activo.setText(f"RASPBERRY PI: {self.hw.modelo} conectado en {self.hw.direccion:#04x}")
+            if self.punto == 3:
+                self.estado_conexion.setText(f"RASPBERRY PI: {self.hw.modelo} conectado en {self.hw.direccion:#04x}")
             if self.punto == 1:
                 self.angulos = [90, 90]
                 self.seleccionar_servo()
@@ -114,15 +111,12 @@ class Ventana(QtWidgets.QWidget):
                     self.actualizar_led(i)
                     getattr(self, f"valor_brillo{i+1}").setText("Brillo: 0 %")
             elif self.punto == 4:
-                self.simulado.setVisible(not real)
-                self.simulado.setChecked(False)
                 self.leer_digital()
         except Exception as exc:
-            self.modo_activo.setText("SIN CONEXIÓN")
+            self.estado_conexion.setText("SIN CONEXIÓN")
             self.informar_error(exc)
 
     def bloquear_conexion(self, ocupado):
-        self.modo.setEnabled(not ocupado)
         self.conectar.setEnabled(not ocupado)
 
     def indice_servo(self):
@@ -228,11 +222,6 @@ class Ventana(QtWidgets.QWidget):
             self.estado.setText("Lectura detenida." if cancelado else "Tiempo finalizado. Última lectura conservada.")
         if self.cierre_pendiente:
             self.close()
-
-    def cambiar_entrada(self, alto):
-        if isinstance(self.hw, Simulador):
-            self.hw.entrada = alto
-            self.leer_digital()
 
     def leer_digital(self):
         if self.hw is None:

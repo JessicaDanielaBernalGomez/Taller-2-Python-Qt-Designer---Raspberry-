@@ -62,46 +62,6 @@ def detectar_mpu(bus, direccion):
 SECUENCIA = ((1,0,0,0), (1,1,0,0), (0,1,0,0), (0,1,1,0),
              (0,0,1,0), (0,0,1,1), (0,0,0,1), (1,0,0,1))
 
-class Simulador:
-    def __init__(self, punto):
-        self.angulos = [90, 90]
-        self.leds = [False, False]
-        self.brillos = [0, 0]
-        self.entrada = False
-        self.pasos = 0
-        self.energizado = False
-
-    def servo(self, indice, angulo):
-        self.angulos[indice] = angulo
-
-    def led(self, indice, estado):
-        self.leds[indice] = estado
-
-    def brillo(self, indice, valor):
-        self.brillos[indice] = valor
-
-    def sensor(self):
-        t = time.monotonic()
-        return {"aceleracion": (math.sin(t), 0.2 * math.cos(t), 9.81),
-                "giro": (0.01 * math.sin(t), 0.02 * math.cos(t), 0.0),
-                "temperatura": 24 + math.sin(t / 5)}
-
-    def digital(self):
-        return self.entrada
-
-    def paso(self, direccion):
-        self.pasos += direccion
-        self.energizado = True
-
-    def detener_motor(self):
-        self.energizado = False
-
-    def close(self):
-        self.leds = [False, False]
-        self.brillos = [0, 0]
-        self.detener_motor()
-
-
 class Raspberry:
     def __init__(self, punto):
         validar_pines(CONFIG)

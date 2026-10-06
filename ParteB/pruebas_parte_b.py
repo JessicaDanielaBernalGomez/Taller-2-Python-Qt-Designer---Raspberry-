@@ -2,9 +2,55 @@
 import os
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 import sys
+import math
+import time
+from unittest.mock import patch
+import interfaz
 from PyQt5 import QtCore, QtWidgets
 from interfaz import Ventana
 from hardware import CONFIG, validar_pines, detectar_mpu
+
+class HardwarePrueba:
+    def __init__(self, punto):
+        self.modelo = "MPU6500"
+        self.direccion = 0x68
+        self.angulos = [90, 90]
+        self.leds = [False, False]
+        self.brillos = [0, 0]
+        self.entrada = False
+        self.pasos = 0
+        self.energizado = False
+
+    def servo(self, indice, angulo):
+        self.angulos[indice] = angulo
+
+    def led(self, indice, estado):
+        self.leds[indice] = estado
+
+    def brillo(self, indice, valor):
+        self.brillos[indice] = valor
+
+    def sensor(self):
+        t = time.monotonic()
+        return {"aceleracion": (math.sin(t), 0.2 * math.cos(t), 9.81),
+                "giro": (0.01 * math.sin(t), 0.02 * math.cos(t), 0.0),
+                "temperatura": 24 + math.sin(t / 5)}
+
+    def digital(self):
+        return self.entrada
+
+    def paso(self, direccion):
+        self.pasos += direccion
+        self.energizado = True
+
+    def detener_motor(self):
+        self.energizado = False
+
+    def close(self):
+        self.leds = [False, False]
+        self.brillos = [0, 0]
+        self.detener_motor()
+
 
 app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
@@ -51,7 +97,9 @@ def probar():
             w.show()
             app.processEvents()
             assert not w.logo.pixmap().isNull()
-            assert "SIMULACIÓN" in w.modo_activo.text()
+            assert "RASPBERRY PI" in w.estado_conexion.text()
+            assert not hasattr(w, "modo")
+            assert not hasattr(w, "simulado")
         b1, b2, b3, b4, b5 = ventanas
 
         b1.angulo.setValue(180)
@@ -96,10 +144,12 @@ def probar():
         assert b3.trabajador is None
         assert "detenida" in b3.estado.text()
 
-        b4.simulado.setChecked(True)
+        b4.hw.entrada = True
+        b4.leer_digital()
         assert b4.nivel.text() == "alto"
         assert "#c62828" in b4.nivel.styleSheet()
-        b4.simulado.setChecked(False)
+        b4.hw.entrada = False
+        b4.leer_digital()
         assert b4.nivel.text() == "bajo"
         assert "#1565c0" in b4.nivel.styleSheet()
 
@@ -155,4 +205,5 @@ def probar():
         esperar(100)
 
 if __name__ == "__main__":
-    probar()
+    with patch.object(interfaz, "Raspberry", HardwarePrueba):
+        probar()

@@ -1,4 +1,4 @@
-"""Punto B.2: interfaz Qt con simulación y conexión a Raspberry Pi."""
+"""Punto B.2: interfaz Qt para Raspberry Pi."""
 from interfaz import ejecutar
 
 if __name__ == "__main__":

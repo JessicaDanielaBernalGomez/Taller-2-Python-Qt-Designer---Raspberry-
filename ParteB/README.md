@@ -1,26 +1,11 @@
 # Parte B — Qt Designer y Raspberry Pi
 
 Los cinco programas cargan sus archivos `.ui` editables en Qt Designer.
-Todos arrancan en **SIMULACIÓN**, incluyendo en Raspberry Pi. Seleccionar
-«Raspberry Pi (hardware real)» y pulsar «Conectar / reiniciar conexión» activa
-el hardware. Un error se muestra como SIN CONEXIÓN y no cambia a simulación.
-
-## Ejecutar en Windows
-
-Desde la raíz del repositorio:
-
-```powershell
-.\.venv\Scripts\python.exe ejecutar.py ParteB/PuntoB-1.py
-.\.venv\Scripts\python.exe ejecutar.py ParteB/PuntoB-2.py
-.\.venv\Scripts\python.exe ejecutar.py ParteB/PuntoB-3.py
-.\.venv\Scripts\python.exe ejecutar.py ParteB/PuntoB-4.py
-.\.venv\Scripts\python.exe ejecutar.py ParteB/PuntoB-5.py
-```
-
-En VS Code selecciona el intérprete `.venv/Scripts/python.exe` y abre el
-archivo `PuntoB-N.py` para usar «Run Python File».
-Abrir un `.ui` con el lanzador solo previsualiza el diseño; ejecutar su
-`.py` conecta botones y controladores.
+Se conectan directamente al hardware Raspberry Pi al abrir la ventana.
+No hay selector de plataforma ni modo de simulación.
+El botón «Conectar / reiniciar conexión» permite reintentar si falla.
+Sin conexión, los controles quedan deshabilitados y se muestra el error.
+El sensor se lee y los motores se accionan mediante los controles de cada punto.
 
 ## Raspberry Pi OS con escritorio
 
@@ -78,7 +63,7 @@ El motor se conecta al ULN2003, no directamente a los pines.
   terminar conserva el último valor. Detener cancela las siguientes lecturas;
   una lectura I2C que ya esté en curso debe retornar antes de cerrar.
 - **B4:** consulta la entrada cada 100 ms; alto en rojo, bajo en azul.
-  En simulación hay una casilla para cambiar el nivel.
+
 - **B5:** secuencia de medio paso para 28BYJ-48/ULN2003, por defecto
   4096 medios pasos por vuelta, intervalo mínimo de 3 ms. El factor es
   nominal y debe calibrarse para el reductor real. Acepta vueltas
@@ -94,7 +79,7 @@ pulsadores/ADC; se conserva en `referencia/PuntoB-2-micropython.py`.
 
 `pruebas_parte_b.py` comprueba las cinco interfaces, entradas inválidas,
 estados LED, lectura temporizada y cancelación, entrada digital, conteo de
-pasos y cierre en simulación. Las conexiones físicas y calibración deben
+pasos y cierre con un doble de hardware exclusivo de las pruebas. Las conexiones físicas y calibración deben
 validarse en la Raspberry con los componentes reales.
 
 Referencias:
@@ -131,7 +116,7 @@ Tras actualizar los archivos en Raspberry, ejecutar:
 i2cdetect -y 1
 .venv/bin/python ejecutar.py ParteB/PuntoB-3.py
 ```
-Seleccionar hardware real y conectar. Si el escaneo no muestra 68 o 69,
+La conexión se intenta al abrir; pulsa Conectar para reintentar. Si el escaneo no muestra 68 o 69,
 revisar alimentación, SDA/SCL, AD0 e I2C habilitado. Si aparece una dirección
 pero falla la identificación, revisar que el componente sea MPU6050.
 

@@ -47,6 +47,6 @@ python -m venv .venv
 puede usarse en lugar de `requirements.txt` para reproducirlas.
 
 La parte A funciona en Windows. La parte B incluye cinco interfaces con
-simulación en Windows y conexión GPIO/I2C en Raspberry Pi OS. Consulta
+conexión directa GPIO/I2C en Raspberry Pi OS. Consulta
 [ParteB/README.md](ParteB/README.md) para conexiones, componentes y ejecución.
 El ejemplo MicroPython anterior se conserva como referencia.

@@ -38,7 +38,7 @@ Se editan en `configuracion.json`.
 
 | Punto | Conexión |
 |---|---|
-| B1 | Señales de servo 1 y 2: GPIO12 y GPIO13 |
+| B1 | PCA9685: servo 1 canal 0, servo 2 canal 1; I2C 0x40 |
 | B2 | LED rojo GPIO17, verde GPIO27; LEDs de brillo GPIO22 y GPIO23 |
 | B3 | MPU6050: SDA GPIO2, SCL GPIO3, VCC compatible a 3,3 V físico1 y GND físico9 |
 | B4 | Entrada GPIO24; resistencia pull-down interna; pulsador entre 3,3 V y GPIO24 |
@@ -100,7 +100,7 @@ de abrir dispositivos. `configuracion.json` contiene los pines ajustables.
 
 | Función | BCM | Pin físico |
 |---|---|---|
-| Servos 1 / 2 | 12 / 13 | 32 / 33 |
+| PCA9685 SDA / SCL | 2 / 3 | 3 / 5 |
 | LED rojo / verde | 17 / 27 | 11 / 13 |
 | LEDs de brillo | 22 / 23 | 15 / 16 |
 | MPU6050 SDA / SCL | 2 / 3 | 3 / 5 |
@@ -139,3 +139,40 @@ y PuntoB-3.ui en la Raspberry. Se utiliza Blinka ya incluido en los requisitos;
 no es necesario modificar la librería instalada del MPU6050.
 
 Referencia: https://product.tdk.com/system/files/dam/doc/product/sensor/mortion-inertial/imu/data_sheet/mpu-6500-datasheet2.pdf
+
+## B1: servos mediante PCA9685
+
+B1 utiliza PCA9685 por I2C, no PWM directo en GPIO12/13.
+Dirección predeterminada 0x40; selector 1 -> canal 0, selector 2 -> canal 1.
+La dirección, canales, frecuencia (50 Hz) y pulsos (1–2 ms) se editan
+en configuracion.json. Los números de canal NO son números de GPIO.
+Calibrar los pulsos según el modelo del servo. Al conectar y al cerrar
+se desactivan los pulsos; se envía un ángulo al mover el slider.
+
+| PCA9685 | Raspberry / alimentación |
+|---|---|
+| VCC (lógica) | 3,3 V físico1 |
+| GND | GND físico9 y negativo de la fuente de servos |
+| SDA | GPIO2 físico3 |
+| SCL | GPIO3 físico5 |
+| V+ (potencia) | Fuente externa adecuada al servo, normalmente 5 V |
+| Canal 0: señal / V+ / GND | Servo 1: señal / rojo / tierra |
+| Canal 1: señal / V+ / GND | Servo 2: señal / rojo / tierra |
+
+Verifica el orden de las tres conexiones según la serigrafía de tu placa.
+VCC y V+ son alimentaciones diferentes. La fuente externa debe soportar
+el consumo de los dos servos; su negativo comparte GND con la Raspberry.
+Si tu placa expone OE, debe estar a nivel bajo para habilitar salidas.
+Los físicos 4, 6 y 8 quedan reservados al ventilador.
+
+El PCA9685 (0x40) y el MPU (0x68/0x69) comparten SDA/SCL con direcciones
+distintas. No cambies la dirección del PCA a la del sensor.
+
+Después de copiar los archivos actualizados en Raspberry:
+```bash
+.venv/bin/python -m pip install -r requirements-raspberry.txt
+i2cdetect -y 1
+.venv/bin/python ejecutar.py ParteB/PuntoB-1.py
+```
+
+Referencia: https://learn.adafruit.com/16-channel-pwm-servo-driver/python-circuitpython

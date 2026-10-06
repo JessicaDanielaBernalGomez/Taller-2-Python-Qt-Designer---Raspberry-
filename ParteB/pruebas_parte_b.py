@@ -61,7 +61,7 @@ def esperar(ms):
 
 def probar():
     validar_pines(CONFIG)
-    conflicto = dict(CONFIG, servos=[14, 13])
+    conflicto = dict(CONFIG, leds=[14, 27])
     try:
         validar_pines(conflicto)
     except ValueError:

@@ -1,4 +1,4 @@
-"""Adaptadores de simulación y Raspberry Pi. Numeración de pines BCM."""
+"""Control de hardware Raspberry Pi. Numeración de pines BCM."""
 import json
 import math
 import time
@@ -8,7 +8,9 @@ CONFIG = json.loads(Path(__file__).with_name("configuracion.json").read_text(enc
 # ===== CONEXIONES FÍSICAS / VENTILADOR: NO MODIFICAR SIN REVISAR CABLEADO =====
 # Ventilador reservado: físico 4 (5V), físico 6 (GND), físico 8 (BCM14).
 # GND de TODOS los componentes del taller: físico 9.
-# BCM12/13 -> físicos32/33: servos.
+# B1 PCA9685: SDA BCM2 físico3, SCL BCM3 físico5, VCC físico1, GND físico9.
+# Servos en canales PCA9685 0 y 1 (configurables), NO en GPIO12/13.
+# V+ del PCA9685: fuente externa apropiada para los servos, tierra común.
 # BCM17/27 -> físicos11/13: LEDs; BCM22/23 -> físicos15/16: PWM.
 # MPU6050/MPU6500: SDA BCM2 físico3; SCL BCM3 físico5; VCC 3,3V físico1; GND físico9.
 # Entrada BCM24 -> físico18.
@@ -21,7 +23,7 @@ BCM_A_FISICO = {2:3, 3:5, 4:7, 14:8, 15:10, 17:11, 18:12, 27:13,
 VENTILADOR_FISICOS = {4, 6, 8}
 
 def validar_pines(config):
-    pines = (config["servos"] + config["leds"] + config["leds_pwm"]
+    pines = (config["leds"] + config["leds_pwm"]
              + [config["entrada"]] + config["motor"] + [2, 3])
     for pin in pines:
         if pin not in BCM_A_FISICO:
@@ -32,6 +34,19 @@ def validar_pines(config):
         raise ValueError("Hay GPIO repetidos entre los componentes.")
     if config["gnd_componentes_pin_fisico"] not in (9,14,20,25,30,34,39):
         raise ValueError("Elige un GND físico libre; el pin6 está reservado al ventilador.")
+
+def validar_pca(config):
+    canales = config["pca9685_canales_servos"]
+    if (len(canales) != 2 or len(set(canales)) != 2
+            or any(type(c) is not int or not 0 <= c <= 15 for c in canales)):
+        raise ValueError("Selecciona dos canales PCA9685 distintos entre 0 y 15.")
+    direccion = int(config["pca9685_direccion"], 0)
+    if not 0x40 <= direccion <= 0x7F or direccion in (0x68, 0x69, 0x70, 0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F):
+        raise ValueError("Dirección PCA9685 reservada o en conflicto; usa 0x40 por defecto.")
+    frecuencia = config["pca9685_frecuencia_hz"]
+    minimo, maximo = config["servo_pulso_min_ms"], config["servo_pulso_max_ms"]
+    if not 40 <= frecuencia <= 60 or not 0 < minimo < maximo < 1000 / frecuencia:
+        raise ValueError("Revisa frecuencia (40–60 Hz) y pulsos mínimo/máximo del servo.")
 
 def detectar_mpu(bus, direccion):
     limite = time.monotonic() + 1
@@ -67,9 +82,38 @@ class Raspberry:
         validar_pines(CONFIG)
         self.dispositivos = []
         self.bus = None
+        self.pca = None
+        self.servos = []
         self.bobinas = []
         self.fase = -1
         try:
+            if punto == 1:
+                validar_pca(CONFIG)
+                try:
+                    import board
+                    from adafruit_pca9685 import PCA9685
+                    from adafruit_motor.servo import Servo
+                except ImportError as exc:
+                    raise RuntimeError("Faltan dependencias PCA9685. Ejecuta: "
+                                       ".venv/bin/python -m pip install -r requirements-raspberry.txt") from exc
+                self.bus = board.I2C()
+                self.direccion = int(CONFIG["pca9685_direccion"], 0)
+                try:
+                    self.pca = PCA9685(self.bus, address=self.direccion)
+                    # Desactivar las salidas usadas antes de configurar los servos.
+                    for canal in CONFIG["pca9685_canales_servos"]:
+                        self.pca.channels[canal].duty_cycle = 0
+                    self.pca.frequency = CONFIG["pca9685_frecuencia_hz"]
+                    for canal in CONFIG["pca9685_canales_servos"]:
+                        servo = Servo(self.pca.channels[canal], actuation_range=180,
+                            min_pulse=int(CONFIG["servo_pulso_min_ms"] * 1000),
+                            max_pulse=int(CONFIG["servo_pulso_max_ms"] * 1000))
+                        self.servos.append(servo)
+                        servo.angle = None
+                except Exception as exc:
+                    raise RuntimeError(f"No se pudo preparar PCA9685 en {self.direccion:#04x}: {exc}. "
+                                       "Revisa VCC, GND, SDA/SCL e i2cdetect -y 1.") from exc
+                return
             if punto == 3:
                 try:
                     import board
@@ -87,17 +131,8 @@ class Raspberry:
                     raise RuntimeError(f"Dispositivo en {self.direccion:#04x}, pero falla "
                                        f"la identificación/lectura MPU6050/MPU6500: {exc}") from exc
                 return
-            from gpiozero import AngularServo, LED, PWMLED, DigitalInputDevice, DigitalOutputDevice
-            if punto == 1:
-                self.servos = []
-                for pin in CONFIG["servos"]:
-                    servo = AngularServo(pin, min_angle=0, max_angle=180,
-                        initial_angle=None,
-                        min_pulse_width=CONFIG["servo_pulso_min_ms"] / 1000,
-                        max_pulse_width=CONFIG["servo_pulso_max_ms"] / 1000)
-                    self.dispositivos.append(servo)
-                    self.servos.append(servo)
-            elif punto == 2:
+            from gpiozero import LED, PWMLED, DigitalInputDevice, DigitalOutputDevice
+            if punto == 2:
                 self.leds = []
                 self.pwm = []
                 for pin in CONFIG["leds"]:
@@ -145,6 +180,21 @@ class Raspberry:
             salida.off()
 
     def close(self):
+        # Quitar PWM de ambos servos antes de liberar el PCA9685 y el bus.
+        for servo in self.servos:
+            try:
+                servo.angle = None
+            except Exception:
+                pass
+        self.servos.clear()
+        if self.pca is not None:
+            try:
+                self.pca.deinit()
+            finally:
+                self.pca = None
+                if self.bus is not None:
+                    self.bus.deinit()
+                    self.bus = None
         # Cerrar también los recursos creados antes de un fallo de conexión.
         for dispositivo in reversed(self.dispositivos):
             try:

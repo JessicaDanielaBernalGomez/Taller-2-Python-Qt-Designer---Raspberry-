@@ -102,6 +102,9 @@ class Ventana(QtWidgets.QWidget):
             if self.punto == 3:
                 self.estado_conexion.setText(f"RASPBERRY PI: {self.hw.modelo} conectado en {self.hw.direccion:#04x}")
             if self.punto == 1:
+                self.estado_conexion.setText(
+                    f"RASPBERRY PI: PCA9685 en {CONFIG['pca9685_direccion']} · "
+                    f"canales {CONFIG['pca9685_canales_servos']}")
                 self.angulos = [90, 90]
                 self.seleccionar_servo()
             elif self.punto == 2:

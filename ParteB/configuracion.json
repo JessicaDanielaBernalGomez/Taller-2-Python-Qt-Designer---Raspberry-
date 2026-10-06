@@ -1,8 +1,4 @@
 {
-  "servos": [
-    12,
-    13
-  ],
   "servo_pulso_min_ms": 1,
   "servo_pulso_max_ms": 2,
   "leds": [
@@ -29,5 +25,11 @@
     8
   ],
   "gnd_componentes_pin_fisico": 9,
-  "nota_pines": "GPIO en BCM: ventilador físico 4=5V, 6=GND, 8=GPIO14. No usar esos conectores. GPIO6 del motor es físico31 y NO está ocupado."
+  "nota_pines": "GPIO en BCM: ventilador físico 4=5V, 6=GND, 8=GPIO14. No usar esos conectores. GPIO6 del motor es físico31 y NO está ocupado.",
+  "pca9685_direccion": "0x40",
+  "pca9685_canales_servos": [
+    0,
+    1
+  ],
+  "pca9685_frecuencia_hz": 50
 }

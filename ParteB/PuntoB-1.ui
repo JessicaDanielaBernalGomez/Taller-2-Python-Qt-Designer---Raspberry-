@@ -87,7 +87,7 @@ Danilo Rodríguez Malago · Brayan Rincón Daza</string>
             <item>
               <widget class="QLabel" name="instruccion">
                 <property name="text">
-                  <string>Escribe 1 o 2 para seleccionar el servo. El ángulo mostrado es la consigna, sin sensor de posición.</string>
+                  <string>PCA9685: escribe 1 o 2 para seleccionar el servo. El ángulo mostrado es la consigna, sin sensor de posición.</string>
                 </property>
                 <property name="wordWrap">
                   <bool>true</bool>

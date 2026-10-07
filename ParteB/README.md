@@ -53,7 +53,7 @@ El motor se conecta al ULN2003, no directamente a los pines.
 
 - **B1:** escribe 1 o 2; el slider envía 0–180°. Cada servo recuerda su
   consigna. Al conectar hardware no se ordena movimiento hasta mover el
-  slider. No hay realimentación de posición. Los pulsos de 1–2 ms son
+  slider. No hay realimentación de posición. Los pulsos comunes de 0,5–2,5 ms son
   valores iniciales que deben calibrarse según el servo; no garantizan
   un recorrido físico exacto de 180° en todos los modelos.
 - **B2:** un botón alterna cada LED rojo/verde y adopta su color encendido.
@@ -144,7 +144,7 @@ Referencia: https://product.tdk.com/system/files/dam/doc/product/sensor/mortion-
 
 B1 utiliza PCA9685 por I2C, no PWM directo en GPIO12/13.
 Dirección predeterminada 0x40; selector 1 -> canal 0, selector 2 -> canal 1.
-La dirección, canales, frecuencia (50 Hz) y pulsos (1–2 ms) se editan
+La dirección, canales, frecuencia (50 Hz) y pulsos (0,5–2,5 ms) se editan
 en configuracion.json. Los números de canal NO son números de GPIO.
 Calibrar los pulsos según el modelo del servo. Al conectar y al cerrar
 se desactivan los pulsos; se envía un ángulo al mover el slider.
@@ -176,3 +176,31 @@ i2cdetect -y 1
 ```
 
 Referencia: https://learn.adafruit.com/16-channel-pwm-servo-driver/python-circuitpython
+
+## Rango común SG90 con la librería de Adafruit
+
+B1 usa adafruit_pca9685.PCA9685 a 50 Hz y adafruit_motor.servo.Servo.
+Se aplica set_pulse_width_range(500, 2500) a ambos servos y
+actuation_range=180. Las órdenes se envían con servo.angle.
+No se duplica el ángulo ni se genera PWM manualmente.
+
+| Consigna | Pulso nominal |
+|---|---|
+| 0° | 500 µs |
+| 45° | 1000 µs |
+| 90° | 1500 µs |
+| 135° | 2000 µs |
+| 180° | 2500 µs |
+
+El ajuste amplía el recorrido alrededor del mismo centro de 1500 µs.
+Es una configuración nominal compartida, no una medición ni una garantía
+de que cada SG90 admita ambos extremos. No cambia las conexiones.
+Probar inicialmente cerca de 90° y ampliar gradualmente sin carga.
+Ante zumbido persistente, bloqueo o calentamiento, desactivar PWM y cortar
+alimentación si persiste. No mantener un servo contra su tope.
+
+Los servos arrancan sin señal; al cerrar la ventana se desactiva el PWM.
+Los límites comunes se editan en servo_pulso_min_ms/servo_pulso_max_ms.
+
+Referencia de la librería:
+https://docs.circuitpython.org/projects/motor/en/latest/api.html#adafruit_motor.servo.Servo

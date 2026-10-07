@@ -105,9 +105,12 @@ class Raspberry:
                         self.pca.channels[canal].duty_cycle = 0
                     self.pca.frequency = CONFIG["pca9685_frecuencia_hz"]
                     for canal in CONFIG["pca9685_canales_servos"]:
-                        servo = Servo(self.pca.channels[canal], actuation_range=180,
-                            min_pulse=int(CONFIG["servo_pulso_min_ms"] * 1000),
-                            max_pulse=int(CONFIG["servo_pulso_max_ms"] * 1000))
+                        servo = Servo(self.pca.channels[canal], actuation_range=180)
+                        # Configuración común para ambos SG90. La librería calcula
+                        # el PWM del PCA9685 a partir del ángulo, sin duplicarlo.
+                        servo.set_pulse_width_range(
+                            int(CONFIG["servo_pulso_min_ms"] * 1000),
+                            int(CONFIG["servo_pulso_max_ms"] * 1000))
                         self.servos.append(servo)
                         servo.angle = None
                 except Exception as exc:

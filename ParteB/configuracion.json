@@ -1,6 +1,6 @@
 {
-  "servo_pulso_min_ms": 1,
-  "servo_pulso_max_ms": 2,
+  "servo_pulso_min_ms": 0.5,
+  "servo_pulso_max_ms": 2.5,
   "leds": [
     17,
     27

@@ -110,6 +110,7 @@ def probar():
         assert b1.angulo.value() == 180
         b1.selector.setText("3")
         assert not b1.angulo.isEnabled()
+        assert not hasattr(b1, "liberar_servos")
 
         b2.led1.click()
         b2.led2.click()

@@ -48,6 +48,28 @@ def validar_pca(config):
     if not 40 <= frecuencia <= 60 or not 0 < minimo < maximo < 1000 / frecuencia:
         raise ValueError("Revisa frecuencia (40–60 Hz) y pulsos mínimo/máximo del servo.")
 
+def parametros_servo(config):
+    minimo = config["servo_pulso_min_ms"] * 1000
+    maximo = config["servo_pulso_max_ms"] * 1000
+    inicio = config.get("servo_compensacion_desde_grados", 135)
+    extra = config.get("servo_compensacion_final_us", 0)
+    if not all(math.isfinite(v) for v in (minimo, maximo, inicio, extra)):
+        raise ValueError("Los parámetros del servo deben ser finitos.")
+    if not 0 <= inicio < 180 or not 0 <= extra <= 100:
+        raise ValueError("Compensación: inicio 0–179° y aumento final 0–100 µs.")
+    if not 0 < minimo < maximo or maximo + extra >= 1e6 / config["pca9685_frecuencia_hz"]:
+        raise ValueError("Rango de pulsos inválido.")
+    return minimo, maximo, inicio, extra
+
+def pulso_servo(angulo, config):
+    """Curva continua: conserva el tramo inicial y compensa solo el final."""
+    if not math.isfinite(angulo) or not 0 <= angulo <= 180:
+        raise ValueError("Ángulo fuera de 0–180°.")
+    minimo, maximo, inicio, extra = parametros_servo(config)
+    base = minimo + (maximo - minimo) * angulo / 180
+    correccion = extra * max(0, angulo - inicio) / (180 - inicio)
+    return base + correccion
+
 def detectar_mpu(bus, direccion):
     limite = time.monotonic() + 1
     while not bus.try_lock():
@@ -89,6 +111,7 @@ class Raspberry:
         try:
             if punto == 1:
                 validar_pca(CONFIG)
+                minimo, maximo, _, extra = parametros_servo(CONFIG)
                 try:
                     import board
                     from adafruit_pca9685 import PCA9685
@@ -109,8 +132,7 @@ class Raspberry:
                         # Configuración común para ambos SG90. La librería calcula
                         # el PWM del PCA9685 a partir del ángulo, sin duplicarlo.
                         servo.set_pulse_width_range(
-                            int(CONFIG["servo_pulso_min_ms"] * 1000),
-                            int(CONFIG["servo_pulso_max_ms"] * 1000))
+                            int(minimo), int(maximo + extra))
                         self.servos.append(servo)
                         servo.angle = None
                 except Exception as exc:
@@ -159,7 +181,12 @@ class Raspberry:
             raise
 
     def servo(self, indice, angulo):
-        self.servos[indice].angle = angulo
+        minimo, maximo, _, extra = parametros_servo(CONFIG)
+        pulso = pulso_servo(angulo, CONFIG)
+        # La librería genera el PWM. fraction permite conservar los pulsos de
+        # 0–135° aunque el rango total tenga ahora un extremo superior mayor.
+        self.servos[indice].fraction = (pulso - int(minimo)) / (
+            int(maximo + extra) - int(minimo))
 
     def led(self, indice, estado):
         self.leds[indice].value = estado

@@ -31,5 +31,7 @@
     0,
     1
   ],
-  "pca9685_frecuencia_hz": 50
+  "pca9685_frecuencia_hz": 50,
+  "servo_compensacion_desde_grados": 135,
+  "servo_compensacion_final_us": 50
 }

@@ -180,8 +180,8 @@ Referencia: https://learn.adafruit.com/16-channel-pwm-servo-driver/python-circui
 ## Rango común SG90 con la librería de Adafruit
 
 B1 usa adafruit_pca9685.PCA9685 a 50 Hz y adafruit_motor.servo.Servo.
-Se aplica set_pulse_width_range(500, 2500) a ambos servos y
-actuation_range=180. Las órdenes se envían con servo.angle.
+Se usa un rango común en set_pulse_width_range y actuation_range=180.
+Las órdenes se envían con servo.fraction para compensar solo el tramo final.
 No se duplica el ángulo ni se genera PWM manualmente.
 
 | Consigna | Pulso nominal |
@@ -190,7 +190,7 @@ No se duplica el ángulo ni se genera PWM manualmente.
 | 45° | 1000 µs |
 | 90° | 1500 µs |
 | 135° | 2000 µs |
-| 180° | 2500 µs |
+| 180° | 2550 µs (incluye compensación final) |
 
 El ajuste amplía el recorrido alrededor del mismo centro de 1500 µs.
 Es una configuración nominal compartida, no una medición ni una garantía
@@ -204,3 +204,20 @@ Los límites comunes se editan en servo_pulso_min_ms/servo_pulso_max_ms.
 
 Referencia de la librería:
 https://docs.circuitpython.org/projects/motor/en/latest/api.html#adafruit_motor.servo.Servo
+
+## Compensación del tramo final (B1)
+
+Configuración común: servo_compensacion_desde_grados=135,
+servo_compensacion_final_us=50. Hasta 135° se conservan los pulsos previos.
+Desde 135° se añade una corrección lineal continua que llega a +50 µs
+a 180° (2550 µs totales). Se mantiene la frecuencia de 50 Hz.
+
+La librería Adafruit sigue calculando y emitiendo el PWM con servo.fraction;
+no se modifica la librería instalada ni se duplica el ángulo. Poner
+servo_compensacion_final_us=0 recupera el comportamiento anterior.
+La validación admite hasta 100 µs de compensación; este límite de software
+no certifica el recorrido mecánico seguro de ningún servo.
+
+Es una primera compensación de prueba, no una medición de posición ni una
+garantía de 180° físicos. Si aparece un tope, zumbido persistente o calor,
+retroceder y cortar alimentación si persiste. No se añade ningún botón.
